@@ -3,14 +3,13 @@
  * To change this template file, choose Tools | Templates
  * and open the template in the editor.
  */
-package practica;
-
-import jade.core.Agent;
+package practica.Data;
 
 /**
  *
  * @author edacal
  */
-public class Sewage_Plant extends Agent{
+public class MassWater {
+    public float volumen;
     
 }
