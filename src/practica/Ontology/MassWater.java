@@ -3,9 +3,8 @@
  * To change this template file, choose Tools | Templates
  * and open the template in the editor.
  */
-package practica.Data;
+package practica.Ontology;
 
-import java.util.ArrayList;
 
 /**
  *
@@ -13,11 +12,8 @@ import java.util.ArrayList;
  */
 public class MassWater {
     public float volumen;
-    public ArrayList<Float> contaminants;
     public float SS;
     public float DBO;
     public float TN; 
     public float TS;
-    
-    
 }
