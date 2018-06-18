@@ -5,6 +5,7 @@
  */
 package practica.Views;
 
+import java.io.IOException;
 import practica.Graphics.MainPanel;
 
 /**
@@ -16,7 +17,7 @@ public class MainView extends javax.swing.JFrame {
     /**
      * Creates new form MainView
      */
-    public MainView() {
+    public MainView() throws IOException {
         initComponents();
         MainPanel panel = new MainPanel();
         add(panel);

@@ -1,1 +1,1 @@
-http://PRT01-X.abinitio.local:7778/acc
+http://eric:7778/acc

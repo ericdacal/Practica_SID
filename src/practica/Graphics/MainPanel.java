@@ -5,10 +5,18 @@
  */
 package practica.Graphics;
 
+import java.awt.Color;
 import java.awt.Dimension;
 import java.awt.Graphics;
+import java.awt.MouseInfo;
+import java.awt.Point;
+import java.awt.PointerInfo;
+import java.awt.Rectangle;
+import java.awt.event.MouseAdapter;
+import java.awt.event.MouseEvent;
 import java.awt.image.BufferedImage;
 import java.io.IOException;
+import java.util.ArrayList;
 import javax.imageio.ImageIO;
 import javax.swing.JPanel;
 
@@ -18,32 +26,44 @@ import javax.swing.JPanel;
  */
 public class MainPanel extends JPanel{
     private Dimension FrameSize;
-    private BufferedImage background;
-    private int backgroundHeight;
-    private int backgroundWidth;
-    private int widthDiv;
+    private BufferedImage factory;
+    private ArrayList<Rectangle> sections;
     private int heightDiv;
     
     public MainPanel() throws IOException {
-        background = ImageIO.read(getClass().getResource("../Resources/grass.jpg"));   
-        backgroundHeight = background.getHeight();
-        backgroundWidth = background.getWidth();
+        factory = ImageIO.read(getClass().getResource("../Resources/factory1.png"));
+        
+        
+        addMouseMotionListener(new MouseAdapter() {
+            @Override
+            public void mouseMoved(MouseEvent e) {
+                //highlight = drawRectangle.contains(e.getPoint());
+                repaint();
+            }
+        });
+        //backgroundHeight = background.getHeight();
+        //backgroundWidth = background.getWidth();
     }
     
     @Override
     public void paint(Graphics g) {
+        PointerInfo a = MouseInfo.getPointerInfo();
+        Point b = a.getLocation();
+        int x = (int) b.getX();
+        int y = (int) b.getY();
         FrameSize = this.getSize();
-        heightDiv = FrameSize.height / background.getHeight();
-        widthDiv  = FrameSize.width / background.getWidth();
-        for(int i = 0; i <= widthDiv; ++i){
-            for(int j = 0; j <= heightDiv; ++j) {
-                
-                g.drawImage(background,i*backgroundWidth,j*backgroundHeight,this);
-            }
+        if(x >= FrameSize.width/2 && x <= FrameSize.width/2 + 50) 
+        {
+            System.out.println("dentro");
+        
         }
-        
-        
-        //g.drawImage(im,50,50,this);
+        g.setColor(Color.GREEN);
+        g.fillRect(0, 0, FrameSize.width, FrameSize.height);
+        heightDiv = FrameSize.height / 20;
+        for(int i = 0; i <= FrameSize.height; ++i) {
+            g.setColor(Color.BLUE);
+            g.fillRect(FrameSize.width/2, i, 50, heightDiv);
+            g.drawImage(factory,FrameSize.width/2 - 30, 0,this);
+        }
     }
-    
 }

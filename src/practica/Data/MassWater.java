@@ -5,11 +5,19 @@
  */
 package practica.Data;
 
+import java.util.ArrayList;
+
 /**
  *
  * @author edacal
  */
 public class MassWater {
     public float volumen;
+    public ArrayList<Float> contaminants;
+    public float SS;
+    public float DBO;
+    public float TN; 
+    public float TS;
+    
     
 }
