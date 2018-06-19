@@ -9,7 +9,7 @@ import jade.core.AID;
 import jade.core.Agent;
 import jade.domain.FIPANames;
 import jade.lang.acl.ACLMessage;
-import jade.proto.AchieveREInitiator;
+import jade.proto.ContractNetInitiator;
 import java.util.Random;
 
 /**
@@ -30,13 +30,14 @@ public class Industry extends Agent{
         request.setContent(String.valueOf(section) + " 10");
         addBehaviour(new DirtyWater(this,request));
     }
-    private class DirtyWater extends AchieveREInitiator {
+    private class DirtyWater extends ContractNetInitiator {
         public DirtyWater(Agent a, ACLMessage request) {
             super(a,request);
         }
         @Override
         protected void handleInform(ACLMessage inform) { 		
             System.out.println(inform.getContent()); 
+            reinit();
         } 
     } 
     private int section;

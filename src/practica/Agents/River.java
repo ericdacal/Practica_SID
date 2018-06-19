@@ -11,6 +11,7 @@ import jade.domain.FIPANames;
 import jade.lang.acl.ACLMessage;
 import jade.lang.acl.MessageTemplate;
 import jade.proto.AchieveREResponder;
+import jade.proto.ContractNetResponder;
 import java.util.ArrayList;
 import java.util.Random;
 import practica.Ontology.MassWater;
@@ -62,12 +63,11 @@ public class River extends Agent{
             }
         }   
     }
-    private class WaterExtract extends AchieveREResponder {
+    private class WaterExtract extends ContractNetResponder {
         public WaterExtract(Agent a,MessageTemplate mt) {
             super(a,mt);
         }
         
-        @Override
         protected ACLMessage prepareResultNotification(ACLMessage request, ACLMessage resp) { 
             String [] demand = request.getContent().split(" ");
             ACLMessage informDone = request.createReply(); 
@@ -82,10 +82,7 @@ public class River extends Agent{
                 informDone.setPerformative(ACLMessage.CANCEL); 
                 informDone.setContent("Not enough water"); 
                 return informDone; 
-            
             }
-            	
-            
         }    
     }   
     private final Random ran;
