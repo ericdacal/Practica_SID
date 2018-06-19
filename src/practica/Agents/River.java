@@ -5,16 +5,19 @@
  */
 package practica.Agents;
 
+import jade.content.lang.Codec;
+import jade.content.lang.sl.SLCodec;
+import jade.content.onto.Ontology;
 import jade.core.Agent;
 import jade.core.behaviours.CyclicBehaviour;
 import jade.domain.FIPANames;
 import jade.lang.acl.ACLMessage;
 import jade.lang.acl.MessageTemplate;
 import jade.proto.AchieveREResponder;
-import jade.proto.ContractNetResponder;
 import java.util.ArrayList;
 import java.util.Random;
 import practica.Ontology.MassWater;
+import practica.Ontology.RiverOntology;
 
 /**
  *
@@ -22,35 +25,48 @@ import practica.Ontology.MassWater;
  */
 public class River extends Agent{
     public River() {
+        ontology = RiverOntology.getInstance(); 
+        codec = new SLCodec();
         sections = new ArrayList<>();
         ran = new Random();
     } 
     
     @Override
     protected void setup() {
+        getContentManager().registerLanguage(codec);
+        getContentManager().registerOntology(ontology);
         MessageTemplate mt = AchieveREResponder.createMessageTemplate(FIPANames.InteractionProtocol.FIPA_REQUEST); 
-        addBehaviour(new WaterExtract(this,mt));
+        addBehaviour(new AchieveREResponder(this, mt) { 
+            @Override
+            protected ACLMessage prepareResultNotification(ACLMessage request, ACLMessage resp) { 
+                
+                ACLMessage informDone = request.createReply(); 	
+                informDone.setPerformative(ACLMessage.INFORM); 
+                informDone.setContent("inform done"); 
+                return informDone; 
+            } 
+        });   
         addBehaviour(new WaterRun());
     }
     private void rain() {
         if(sections.isEmpty()) {
             for(int i = 0; i < 10; ++i) {
                 MassWater mw = new MassWater();
-                mw.volumen = ran.nextFloat()*20;
-                mw.DBO = ran.nextFloat();
-                mw.SS = ran.nextFloat();
-                mw.TN = ran.nextFloat();
-                mw.TS = ran.nextFloat();
+                mw.setVolumen(ran.nextFloat()*20);
+                mw.setDBO(ran.nextFloat());
+                mw.setSS(ran.nextFloat());
+                mw.setTN(ran.nextFloat());
+                mw.setTS(ran.nextFloat());
                 sections.add(mw);
             }
         }
         else {
             MassWater mw = new MassWater();
-            mw.volumen = ran.nextFloat()*10;
-            mw.DBO = ran.nextFloat();
-            mw.SS = ran.nextFloat();
-            mw.TN = ran.nextFloat();
-            mw.TS = ran.nextFloat();
+            mw.setVolumen(ran.nextFloat()*20);
+            mw.setDBO(ran.nextFloat());
+            mw.setSS(ran.nextFloat());
+            mw.setTN(ran.nextFloat());
+            mw.setTS(ran.nextFloat());
             sections.set(0,mw);
         }
     }
@@ -63,29 +79,9 @@ public class River extends Agent{
             }
         }   
     }
-    private class WaterExtract extends ContractNetResponder {
-        public WaterExtract(Agent a,MessageTemplate mt) {
-            super(a,mt);
-        }
-        
-        protected ACLMessage prepareResultNotification(ACLMessage request, ACLMessage resp) { 
-            String [] demand = request.getContent().split(" ");
-            ACLMessage informDone = request.createReply(); 
-            int section = Integer.parseInt(demand[0]);
-            if(section < sections.size()) {
-                informDone.setPerformative(ACLMessage.INFORM); 
-                informDone.setContent(String.valueOf(sections.get(section).volumen) + " " + String.valueOf(sections.get(section).DBO) + " " + String.valueOf(sections.get(section).SS) + " " + String.valueOf(sections.get(section).TS)); 
-                sections.get(section).volumen = 0;
-                return informDone; 
-            }
-            else {
-                informDone.setPerformative(ACLMessage.CANCEL); 
-                informDone.setContent("Not enough water"); 
-                return informDone; 
-            }
-        }    
-    }   
     private final Random ran;
+    private final Ontology ontology;
+    private final Codec codec;
     private static ArrayList<MassWater> sections;
 }
     
