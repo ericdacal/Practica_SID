@@ -5,8 +5,7 @@
  */
 package practica.Agents;
 
-import jade.content.Concept;
-import jade.content.ContentElement;
+
 import jade.content.lang.Codec;
 import jade.content.lang.sl.SLCodec;
 import jade.content.onto.Ontology;
@@ -19,10 +18,10 @@ import jade.domain.FIPANames;
 import jade.lang.acl.ACLMessage;
 import jade.lang.acl.MessageTemplate;
 import jade.proto.AchieveREInitiator;
-import jade.proto.AchieveREResponder;
+import jade.proto.ContractNetResponder;
+import java.util.Random;
 import java.util.logging.Level;
 import java.util.logging.Logger;
-import practica.Ontology.CleanWater;
 import practica.Ontology.RiverOntology;
 import practica.Ontology.MassWater;
 import practica.Ontology.ThrowWater;
@@ -31,10 +30,11 @@ import practica.Ontology.ThrowWater;
  *
  * @author edacal
  */
-public class Sewage_Plant extends Agent{
-    public Sewage_Plant() {
+public class Sewage_Plant_Scenari2 extends Agent{
+    public Sewage_Plant_Scenari2() {
         ontology = RiverOntology.getInstance(); 
         codec = new SLCodec();
+        ran = new Random();
         section = 10;
     }
     
@@ -43,28 +43,16 @@ public class Sewage_Plant extends Agent{
         
         getContentManager().registerLanguage(codec);
         getContentManager().registerOntology(ontology);
-        MessageTemplate mt = AchieveREResponder.createMessageTemplate(FIPANames.InteractionProtocol.FIPA_REQUEST);
-        addBehaviour(new AchieveREResponder(this, mt) { 
-            @Override
-            protected ACLMessage prepareResultNotification(ACLMessage request, ACLMessage response) {
-                try {
-                    ContentElement content = getContentManager().extractContent(request);
-                    Concept action = ((Action)content).getAction();
-                    if(action instanceof CleanWater) {
-                        CleanWater cw = (CleanWater)((Action)content).getAction();
-                        MassWater mw = cw.getWater();
-                        addBehaviour(new PurifyWater(mw));  
-                    }
-                } catch (OntologyException | Codec.CodecException ex) {
-                    Logger.getLogger(Sewage_Plant.class.getName()).log(Level.SEVERE, null, ex);
-                }
-                return null;
-            }
-            
-            @Override
-            protected ACLMessage prepareResponse(ACLMessage request) {
-                return null;
-            }
+        MessageTemplate mt = ContractNetResponder.createMessageTemplate(FIPANames.InteractionProtocol.FIPA_PROPOSE);
+        addBehaviour(new ContractNetResponder(this, mt) { 
+           @Override
+           protected ACLMessage handleCfp(ACLMessage cfp) 
+           {
+               cfp.createReply();
+               if(ran.nextInt(10) < 5) cfp.setPerformative(ACLMessage.ACCEPT_PROPOSAL);
+               else cfp.setPerformative(ACLMessage.REJECT_PROPOSAL);
+               return cfp;
+           }
         });
     }
     
@@ -93,7 +81,7 @@ public class Sewage_Plant extends Agent{
                 getContentManager().fillContent(throw_message, new Action(new AID("River", AID.ISLOCALNAME), tw));
                 myAgent.addBehaviour(new AchieveREInitiator(myAgent,throw_message));
             } catch (Codec.CodecException | OntologyException ex) {
-                Logger.getLogger(Sewage_Plant.class.getName()).log(Level.SEVERE, null, ex);
+                Logger.getLogger(Sewage_Plant_Scenari2.class.getName()).log(Level.SEVERE, null, ex);
             }
             
             
@@ -104,5 +92,6 @@ public class Sewage_Plant extends Agent{
     private final Ontology ontology;
     private final Codec codec;
     private final int section;
+    private final Random ran;
     
 }

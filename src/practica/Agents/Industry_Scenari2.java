@@ -6,7 +6,6 @@
 package practica.Agents;
 
 import jade.content.ContentElement;
-import jade.content.abs.AbsPredicate;
 import jade.content.lang.Codec;
 import jade.content.lang.sl.SLCodec;
 import jade.content.onto.Ontology;
@@ -18,6 +17,7 @@ import jade.core.behaviours.CyclicBehaviour;
 import jade.domain.FIPANames;
 import jade.lang.acl.ACLMessage;
 import jade.proto.AchieveREInitiator;
+import jade.proto.ContractNetInitiator;
 import java.util.Random;
 import java.util.logging.Level;
 import java.util.logging.Logger;
@@ -31,9 +31,9 @@ import practica.Ontology.TakeWater;
  *
  * @author edacal
  */
-public class Industry extends Agent{
+public class Industry_Scenari2 extends Agent{
     
-    public Industry() {
+    public Industry_Scenari2() {
         ontology = RiverOntology.getInstance(); 
         codec = new SLCodec();
         ran = new Random();
@@ -42,6 +42,8 @@ public class Industry extends Agent{
     protected void setup() {
         getContentManager().registerLanguage(codec);
         getContentManager().registerOntology(ontology);
+        MAX_STORED = ran.nextFloat() * 250;
+        stored = 0.0f;
         DBO_affect = ran.nextFloat();
         TN_affect = ran.nextFloat();
         TS_affect = ran.nextFloat();
@@ -64,7 +66,7 @@ public class Industry extends Agent{
             try {
                 getContentManager().fillContent(notifyDirty, new Action(new AID("River", AID.ISLOCALNAME), tw));
             } catch (Codec.CodecException | OntologyException ex) {
-                Logger.getLogger(Industry.class.getName()).log(Level.SEVERE, null, ex);
+                Logger.getLogger(Industry_Scenari2.class.getName()).log(Level.SEVERE, null, ex);
             }
             myAgent.addBehaviour(new AchieveREInitiator(myAgent, notifyDirty)
             {
@@ -73,28 +75,54 @@ public class Industry extends Agent{
                    ContentElement ce = null; 
                    try {
                        ce = getContentManager().extractContent(inform);
-                    if(ce instanceof Have) { 
-                        Have h = (Have) ce;
-                        extractWater = new MassWater();
-                        extractWater.setVolume(h.getVolume());
-                        extractWater.setDBO(h.getDQO()+ DQO_affect);
-                        extractWater.setDBO(h.getDBO() + DBO_affect);
-                        extractWater.setTN(h.getTN() + TN_affect);
-                        extractWater.setSS(h.getSS() + SS_affect);
-                        extractWater.setTS(h.getTS() + TS_affect);          
-                        ACLMessage clearMessage = new ACLMessage(ACLMessage.REQUEST); 
-                        clearMessage.setProtocol(FIPANames.InteractionProtocol.FIPA_REQUEST); 
-                        clearMessage.setLanguage(codec.getName());
-                        clearMessage.setOntology(ontology.getName());
-                        clearMessage.addReceiver(new AID("Plant", AID.ISLOCALNAME));
-                        CleanWater cw = new CleanWater();
-                        cw.setWater(extractWater);
-                        getContentManager().fillContent(clearMessage, new Action(new AID("Plant", AID.ISLOCALNAME), cw));
-                        myAgent.addBehaviour(new AchieveREInitiator(myAgent, clearMessage));
-                    }
-                   } 
-                   catch (Codec.CodecException | OntologyException ex) {
-                       Logger.getLogger(Industry.class.getName()).log(Level.SEVERE, null, ex);
+                       if(ce instanceof Have) { 
+                           Have h = (Have) ce;
+                           extractWater = new MassWater();
+                           extractWater.setVolume(h.getVolume());
+                           extractWater.setDBO(h.getDQO()+ DQO_affect);
+                           extractWater.setDBO(h.getDBO() + DBO_affect);
+                           extractWater.setTN(h.getTN() + TN_affect);
+                           extractWater.setSS(h.getSS() + SS_affect);
+                           extractWater.setTS(h.getTS() + TS_affect);
+                           if(extractWater.getVolume() + stored > MAX_STORED) {
+                                float sprov = stored;
+                                stored = extractWater.getVolume();
+                                extractWater.setVolume(sprov);
+                                ACLMessage clearMessage = new ACLMessage(ACLMessage.PROPOSE); 
+                                clearMessage.setProtocol(FIPANames.InteractionProtocol.FIPA_PROPOSE); 
+                                clearMessage.setLanguage(codec.getName());
+                                clearMessage.setOntology(ontology.getName());
+                                clearMessage.addReceiver(new AID("Plant", AID.ISLOCALNAME));
+                                CleanWater cw = new CleanWater();
+                                cw.setWater(extractWater);
+                                getContentManager().fillContent(clearMessage, new Action(new AID("Plant", AID.ISLOCALNAME), cw));
+                                myAgent.addBehaviour(new ContractNetInitiator(myAgent, clearMessage) 
+                                {
+                                    @Override
+                                    protected void handleRefuse(ACLMessage refuse) {
+                                        System.out.println(refuse);
+
+                                    }
+                                    
+                                    @Override
+                                    protected void handleInform(ACLMessage inform) {
+                                        System.out.println(inform);
+                                    }
+                           
+                                });
+                                
+                           }
+                           else 
+                           {
+                                stored += extractWater.getVolume();
+                           }
+                           
+                           
+                           
+                              
+                       }
+                   } catch (Codec.CodecException | OntologyException ex) {
+                       Logger.getLogger(Industry_Scenari2.class.getName()).log(Level.SEVERE, null, ex);
                    }
                }
                
@@ -108,6 +136,8 @@ public class Industry extends Agent{
         }
     } 
     private int section;
+    private float MAX_STORED;
+    private float stored;
     private final Ontology ontology;
     private final Codec codec;
     private final Random ran;

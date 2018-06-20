@@ -14,7 +14,11 @@ import jade.content.Predicate;
  */
 public class Have implements Predicate{
     private float volume;
-    private MassWater mass;
+    private float TS;
+    private float SS;
+    private float DBO;
+    private float DQO;
+    private float TN;
     
     public float getVolume() { 
         return volume; 
@@ -22,12 +26,40 @@ public class Have implements Predicate{
     public void setVolume(float volume) { 
         this.volume = volume; 
     } 
-    public MassWater getMassWater() { 
-        return mass; 
+    public float getTS() { 
+        return TS; 
     } 
-    public void setMassWater(MassWater mass) { 
-        this.mass = mass; 
+    public void setTS(float TS) { 
+        this.TS = TS; 
     } 
+    
+    public float getSS() { 
+        return SS; 
+    } 
+    public void setSS(float SS) { 
+        this.SS = SS; 
+    } 
+    
+    public float getDBO() { 
+        return DBO; 
+    } 
+    public void setDBO(float DBO) { 
+        this.DBO = DBO; 
+    } 
+    
+    public float getDQO() { 
+        return DQO; 
+    } 
+    public void setDQO(float DQO) { 
+        this.DQO = DQO; 
+    } 
+    public float getTN() { 
+        return TN; 
+    } 
+    public void setTN(float TN) { 
+        this.TN = TN; 
+    } 
+ 
     
     
 }

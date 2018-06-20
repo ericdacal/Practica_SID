@@ -16,14 +16,15 @@ public class MassWater implements Concept{
     private float volumen;
     private float SS;
     private float DBO;
+    private float DQO;
     private float TN; 
     private float TS;
     
-    public float getVolumen() {
+    public float getVolume() {
         return volumen;
     }
     
-    public void setVolumen(float volumen) {
+    public void setVolume(float volumen) {
         this.volumen = volumen;
     }
     public float getSS() {
@@ -37,6 +38,12 @@ public class MassWater implements Concept{
     }
     public void setDBO(float DBO) {
         this.DBO = DBO;
+    }
+    public float getDQO() {
+        return DQO;
+    }
+    public void setDQO(float DQO) {
+        this.DQO = DQO;
     }
     public float getTN() {
         return TN;
