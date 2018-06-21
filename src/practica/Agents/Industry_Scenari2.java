@@ -5,6 +5,7 @@
  */
 package practica.Agents;
 
+import static com.sun.corba.se.spi.presentation.rmi.StubAdapter.request;
 import jade.content.ContentElement;
 import jade.content.lang.Codec;
 import jade.content.lang.sl.SLCodec;
@@ -14,9 +15,14 @@ import jade.content.onto.basic.Action;
 import jade.core.AID;
 import jade.core.Agent;
 import jade.core.behaviours.CyclicBehaviour;
+import jade.core.behaviours.ParallelBehaviour;
+import jade.core.behaviours.SimpleBehaviour;
+import jade.core.behaviours.WakerBehaviour;
 import jade.domain.FIPANames;
 import jade.lang.acl.ACLMessage;
+import jade.lang.acl.MessageTemplate;
 import jade.proto.AchieveREInitiator;
+import jade.proto.AchieveREResponder;
 import jade.proto.ContractNetInitiator;
 import java.util.Random;
 import java.util.logging.Level;
@@ -32,6 +38,18 @@ import practica.Ontology.TakeWater;
  * @author edacal
  */
 public class Industry_Scenari2 extends Agent{
+    private final Ontology ontology;
+    private final Codec codec;
+    private final Random ran;
+   
+    private int section; //Section were the indistry takes the water
+    private float maxVolume; //Max volume that can be stored in the water tank
+    private MassWater storedWater; //Mater Mass representing the water stored in the tank.
+    private float DBO_affect; /*Values representing how much the industry "dirties" the water it recieves.*/
+    private float DQO_affect;
+    private float TN_affect;
+    private float TS_affect;
+    private float SS_affect;
     
     public Industry_Scenari2() {
         ontology = RiverOntology.getInstance(); 
@@ -42,109 +60,103 @@ public class Industry_Scenari2 extends Agent{
     protected void setup() {
         getContentManager().registerLanguage(codec);
         getContentManager().registerOntology(ontology);
-        MAX_STORED = ran.nextFloat() * 250;
-        stored = 0.0f;
+        maxVolume = ran.nextFloat() * 250;
+        storedWater = new MassWater();
         DBO_affect = ran.nextFloat();
         TN_affect = ran.nextFloat();
         TS_affect = ran.nextFloat();
         SS_affect = ran.nextFloat();
         DBO_affect = ran.nextFloat();
         section = ran.nextInt(10);
+        
         addBehaviour(new DirtyWater());
     }
+    
+       class WaitServerResponse extends ParallelBehaviour {
+// ----------------------------------------------------  launch a SimpleBehaviour to receive
+//                                                       servers response and a WakerBehaviour
+//                                                       to terminate the waiting if there is
+//                                                       no response from the server
+      WaitServerResponse(Agent a) {
+
+         super(a, 1);
+
+         addSubBehaviour(new ReceiveResponse(myAgent));
+
+         addSubBehaviour(new WakerBehaviour(myAgent, 5000) {
+
+            protected void handleElapsedTimeout() {
+               System.out.println("\n\tNo response from server. Please, try later!");
+            }
+         });
+      }
+   }
+
+
+   class ReceiveResponse extends SimpleBehaviour {
+// -----------------------------------------------  // Receive and handle server responses
+
+      private boolean finished = false;
+
+      ReceiveResponse(Agent a) {
+         super(a);
+      }
+
+      public void action() {
+         AID river = (new AID("River", AID.ISLOCALNAME));
+         ACLMessage msg = receive(MessageTemplate.MatchSender(river));
+         
+
+         if (msg == null) {block(); return; } 
+         if (msg.getPerformative() == ACLMessage.NOT_UNDERSTOOD){
+            System.out.println("\n\n\tResponse from server: NOT UNDERSTOOD!");
+         }
+         else if (msg.getPerformative() == ACLMessage.REFUSE){
+            System.out.println("\n\n\tResponse from server: NOT ENOUGH WATER!");
+         }
+         else if (msg.getPerformative() == ACLMessage.INFORM){
+            try {
+               Object content = msg.getContentObject();
+               if (content instanceof MassWater) {
+                  MassWater result = (MassWater) content;
+                  storedWater.mixWater(result,storedWater);
+                  System.out.println("OMPLINT DIPOSIT. AIGUA TOTAL: %f"+storedWater.getVolume());
+               }
+               else {
+                  System.out.println("\n\tUnable de decode response from server!");
+               }
+            }
+            catch (Exception e) { e.printStackTrace(); }
+            finished = true;
+        }
+    }
+      public boolean done() { return finished; }
+   }
+
     private class DirtyWater extends CyclicBehaviour {
         @Override
         public void action() {
-            ACLMessage notifyDirty = new ACLMessage(ACLMessage.QUERY_IF); 
-            notifyDirty.setProtocol(FIPANames.InteractionProtocol.FIPA_QUERY); 
-            notifyDirty.setLanguage(codec.getName());
-            notifyDirty.setOntology(ontology.getName());
-            notifyDirty.addReceiver(new AID("River", AID.ISLOCALNAME)); 
-            TakeWater tw = new TakeWater();
-            tw.setSection(section);
-            tw.setVolume(10f);
-            try {
-                getContentManager().fillContent(notifyDirty, new Action(new AID("River", AID.ISLOCALNAME), tw));
-            } catch (Codec.CodecException | OntologyException ex) {
-                Logger.getLogger(Industry_Scenari2.class.getName()).log(Level.SEVERE, null, ex);
+            if(storedWater.getVolume() < 0.9*maxVolume){
+                ACLMessage takeWaterMessage = new ACLMessage(ACLMessage.REQUEST); 
+                takeWaterMessage.setProtocol(FIPANames.InteractionProtocol.FIPA_REQUEST); 
+                takeWaterMessage.setLanguage(codec.getName());
+                takeWaterMessage.setOntology(ontology.getName());
+                takeWaterMessage.addReceiver(new AID("River", AID.ISLOCALNAME));
+                TakeWater tw = new TakeWater();
+                tw.setSection(section);
+                tw.setVolume(10f);
+                try{
+                    //getContentManager().fillContent(takeWaterMessage, new Action(new AID("Plant", AID.ISLOCALNAME), tw));
+                    takeWaterMessage.setContentObject(tw);
+                } 
+                catch(Exception ex) { ex.printStackTrace(); }
+                send(takeWaterMessage);
+                addBehaviour(new WaitServerResponse(myAgent));
+                block();
             }
-            myAgent.addBehaviour(new AchieveREInitiator(myAgent, notifyDirty)
-            {
-                @Override
-               protected void handleInform(ACLMessage inform) { 
-                   ContentElement ce = null; 
-                   try {
-                       ce = getContentManager().extractContent(inform);
-                       if(ce instanceof Have) { 
-                           Have h = (Have) ce;
-                           extractWater = new MassWater();
-                           extractWater.setVolume(h.getVolume());
-                           extractWater.setDBO(h.getDQO()+ DQO_affect);
-                           extractWater.setDBO(h.getDBO() + DBO_affect);
-                           extractWater.setTN(h.getTN() + TN_affect);
-                           extractWater.setSS(h.getSS() + SS_affect);
-                           extractWater.setTS(h.getTS() + TS_affect);
-                           if(extractWater.getVolume() + stored > MAX_STORED) {
-                                float sprov = stored;
-                                stored = extractWater.getVolume();
-                                extractWater.setVolume(sprov);
-                                ACLMessage clearMessage = new ACLMessage(ACLMessage.PROPOSE); 
-                                clearMessage.setProtocol(FIPANames.InteractionProtocol.FIPA_PROPOSE); 
-                                clearMessage.setLanguage(codec.getName());
-                                clearMessage.setOntology(ontology.getName());
-                                clearMessage.addReceiver(new AID("Plant", AID.ISLOCALNAME));
-                                CleanWater cw = new CleanWater();
-                                cw.setWater(extractWater);
-                                getContentManager().fillContent(clearMessage, new Action(new AID("Plant", AID.ISLOCALNAME), cw));
-                                myAgent.addBehaviour(new ContractNetInitiator(myAgent, clearMessage) 
-                                {
-                                    @Override
-                                    protected void handleRefuse(ACLMessage refuse) {
-                                        System.out.println(refuse);
-
-                                    }
-                                    
-                                    @Override
-                                    protected void handleInform(ACLMessage inform) {
-                                        System.out.println(inform);
-                                    }
-                           
-                                });
-                                
-                           }
-                           else 
-                           {
-                                stored += extractWater.getVolume();
-                           }
-                           
-                           
-                           
-                              
-                       }
-                   } catch (Codec.CodecException | OntologyException ex) {
-                       Logger.getLogger(Industry_Scenari2.class.getName()).log(Level.SEVERE, null, ex);
-                   }
-               }
-               
-               @Override
-               protected void handleRefuse(ACLMessage refuse) 
-               {
-               }
-                    
-                    
-            });
-        }
+            else{
+                System.out.println("DIPOSIT PLE");
+            }
+        }        
     } 
-    private int section;
-    private float MAX_STORED;
-    private float stored;
-    private final Ontology ontology;
-    private final Codec codec;
-    private final Random ran;
-    private MassWater extractWater;
-    private float DBO_affect;
-    private float DQO_affect;
-    private float TN_affect;
-    private float TS_affect;
-    private float SS_affect;
 }
