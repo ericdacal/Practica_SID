@@ -29,7 +29,8 @@ public class RiverOntology extends Ontology{
       public static final String DBO = "DBO";
       public static final String DQO = "DQO"; 
       public static final String TN = "TN"; 
-      public static final String TS = "TS"; 
+      public static final String TS = "TS";
+      
       public static final String HAVE = "Have"; 
       public static final String HAVE_VOLUME = "volume"; 
       public static final String HAVE_SS = "SS"; 
@@ -59,8 +60,7 @@ public class RiverOntology extends Ontology{
         } 
       // Private constructor  
        private RiverOntology() { 
-           
-               
+              
           // The river ontology extends the basic ontology
           super(ONTOLOGY_NAME, BasicOntology.getInstance(), new CFReflectiveIntrospector()); 
           try
