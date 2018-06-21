@@ -15,16 +15,23 @@ import jade.content.onto.basic.Action;
 import jade.core.AID;
 import jade.core.Agent;
 import jade.core.behaviours.CyclicBehaviour;
+import jade.core.behaviours.OneShotBehaviour;
 import jade.core.behaviours.ParallelBehaviour;
 import jade.core.behaviours.SimpleBehaviour;
 import jade.core.behaviours.WakerBehaviour;
-import jade.domain.FIPANames;
+import jade.domain.*;
+import jade.domain.DFService;
+import jade.domain.FIPAAgentManagement.DFAgentDescription;
+import jade.domain.FIPAAgentManagement.ServiceDescription;
 import jade.lang.acl.ACLMessage;
 import jade.lang.acl.MessageTemplate;
 import jade.proto.AchieveREInitiator;
 import jade.proto.AchieveREResponder;
 import jade.proto.ContractNetInitiator;
+import jade.proto.ContractNetResponder;
+import java.util.Date;
 import java.util.Random;
+import java.util.Vector;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 import practica.Ontology.CleanWater;
@@ -32,6 +39,7 @@ import practica.Ontology.Have;
 import practica.Ontology.MassWater;
 import practica.Ontology.RiverOntology;
 import practica.Ontology.TakeWater;
+import practica.Ontology.ThrowWater;
 
 /**
  *
@@ -50,6 +58,7 @@ public class Industry_Scenari2 extends Agent{
     private float TN_affect;
     private float TS_affect;
     private float SS_affect;
+    private float consumingRate;
     
     public Industry_Scenari2() {
         ontology = RiverOntology.getInstance(); 
@@ -68,20 +77,35 @@ public class Industry_Scenari2 extends Agent{
         SS_affect = ran.nextFloat();
         DBO_affect = ran.nextFloat();
         section = ran.nextInt(10);
+        consumingRate = ran.nextFloat()*10;
+       
+        DFAgentDescription dfd = new DFAgentDescription();
+        dfd.setName( getAID() ); 
+        ServiceDescription sd  = new ServiceDescription();
+        sd.setType( "Industry" );
+        sd.setName( getLocalName() );
+        dfd.addServices(sd);
+        
+        try {  
+            DFService.register(this, dfd );  
+        }
+        catch (FIPAException fe) { fe.printStackTrace(); }
         
         addBehaviour(new DirtyWater());
     }
     
-       class WaitServerResponse extends ParallelBehaviour {
+    
+    ///////////////EDAR////////////////////////
+       class WaitEDARResponse extends ParallelBehaviour {
 // ----------------------------------------------------  launch a SimpleBehaviour to receive
 //                                                       servers response and a WakerBehaviour
 //                                                       to terminate the waiting if there is
 //                                                       no response from the server
-      WaitServerResponse(Agent a) {
+      WaitEDARResponse(Agent a) {
 
          super(a, 1);
 
-         addSubBehaviour(new ReceiveResponse(myAgent));
+         addSubBehaviour(new ReceiveEDARResponse(myAgent));
 
          addSubBehaviour(new WakerBehaviour(myAgent, 5000) {
 
@@ -93,12 +117,72 @@ public class Industry_Scenari2 extends Agent{
    }
 
 
-   class ReceiveResponse extends SimpleBehaviour {
+   class ReceiveEDARResponse extends SimpleBehaviour {
 // -----------------------------------------------  // Receive and handle server responses
 
       private boolean finished = false;
 
-      ReceiveResponse(Agent a) {
+      ReceiveEDARResponse(Agent a) {
+         super(a);
+      }
+
+      public void action() {
+         AID edar = (new AID("EDAR", AID.ISLOCALNAME));
+         ACLMessage msg = receive(MessageTemplate.MatchSender(edar));
+         
+
+         if (msg == null) {block(); return; } 
+         if (msg.getPerformative() == ACLMessage.NOT_UNDERSTOOD){
+            System.out.println("\n\n\tResponse from EDAR: NOT UNDERSTOOD!");
+         }
+         else if (msg.getPerformative() == ACLMessage.REFUSE){
+            System.out.println("\n\n\tResponse from EDAR: CANNOT HANDLE THAT WATER MASS!");
+         }
+         else if (msg.getPerformative() == ACLMessage.INFORM){
+            try {
+               Object content = msg.getContentObject();
+               if (!(content instanceof MassWater)) {
+                    storedWater = (MassWater)content;
+                    System.out.println("\n\n\tResponse from EDAR: TANK EMPTIER!");
+               }
+               else {
+                  System.out.println("\n\tUnable de decode response from EDAR!");
+               }
+            }
+            catch (Exception e) { e.printStackTrace(); }
+            finished = true;
+        }
+    }
+      public boolean done() { return finished; }
+   }
+
+   ///////////////RIVER////////////////////////
+   
+    class WaitRiverResponse extends ParallelBehaviour {
+// ----------------------------------------------------  launch a SimpleBehaviour to receive
+//                                                       servers response and a WakerBehaviour
+//                                                       to terminate the waiting if there is
+//                                                       no response from the server
+      WaitRiverResponse(Agent a) {
+
+         super(a, 1);
+
+         addSubBehaviour(new ReceiveRiverResponse(myAgent));
+
+         addSubBehaviour(new WakerBehaviour(myAgent, 5000) {
+
+            protected void handleElapsedTimeout() {
+               System.out.println("\n\tNo response from server. Please, try later!");
+            }
+         });
+      }
+   }
+      class ReceiveRiverResponse extends SimpleBehaviour {
+// -----------------------------------------------  // Receive and handle server responses
+
+      private boolean finished = false;
+
+      ReceiveRiverResponse(Agent a) {
          super(a);
       }
 
@@ -136,7 +220,7 @@ public class Industry_Scenari2 extends Agent{
     private class DirtyWater extends CyclicBehaviour {
         @Override
         public void action() {
-            if(storedWater.getVolume() < 0.9*maxVolume){
+            if(storedWater.getVolume() < (maxVolume-consumingRate)){
                 ACLMessage takeWaterMessage = new ACLMessage(ACLMessage.REQUEST); 
                 takeWaterMessage.setProtocol(FIPANames.InteractionProtocol.FIPA_REQUEST); 
                 takeWaterMessage.setLanguage(codec.getName());
@@ -144,18 +228,32 @@ public class Industry_Scenari2 extends Agent{
                 takeWaterMessage.addReceiver(new AID("River", AID.ISLOCALNAME));
                 TakeWater tw = new TakeWater();
                 tw.setSection(section);
-                tw.setVolume(10f);
+                tw.setVolume(consumingRate);
                 try{
                     //getContentManager().fillContent(takeWaterMessage, new Action(new AID("Plant", AID.ISLOCALNAME), tw));
                     takeWaterMessage.setContentObject(tw);
                 } 
                 catch(Exception ex) { ex.printStackTrace(); }
                 send(takeWaterMessage);
-                addBehaviour(new WaitServerResponse(myAgent));
+                addBehaviour(new WaitRiverResponse(myAgent));
                 block();
             }
             else{
-                System.out.println("DIPOSIT PLE");
+                ACLMessage throwWaterMessage = new ACLMessage(ACLMessage.REQUEST); 
+                throwWaterMessage.setProtocol(FIPANames.InteractionProtocol.FIPA_REQUEST); 
+                throwWaterMessage.setLanguage(codec.getName());
+                throwWaterMessage.setOntology(ontology.getName());
+                throwWaterMessage.addReceiver(new AID("EDAR", AID.ISLOCALNAME));
+                ThrowWater tw = new ThrowWater();
+                tw.setMassWater(storedWater);
+                try{
+                    //getContentManager().fillContent(takeWaterMessage, new Action(new AID("Plant", AID.ISLOCALNAME), tw));
+                    throwWaterMessage.setContentObject(tw);
+                } 
+                catch(Exception ex) { ex.printStackTrace(); }
+                send(throwWaterMessage);
+                addBehaviour(new WaitEDARResponse(myAgent));
+                block();
             }
         }        
     } 
