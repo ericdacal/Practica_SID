@@ -1,1 +1,1 @@
-http://GuillePC:7778/acc
+http://PRT01-X.abinitio.local:7778/acc
